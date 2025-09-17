@@ -1,0 +1,16 @@
+{
+	"name": "RedMarble",
+	"namespace": "https://edlessz.com",
+	"grant": [
+		"unsafeWindow",
+		"GM.notification",
+		"GM.setValue",
+		"GM.getValue",
+		"GM.setValue",
+		"GM.getValue",
+		"GM_xmlhttpRequest",
+		"unsafeWindow"
+	],
+	"run-at": "document-start",
+	"match": ["https://wplace.live/*"]
+}
