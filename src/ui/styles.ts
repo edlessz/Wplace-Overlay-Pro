@@ -37,14 +37,14 @@ export function injectStyles() {
 
       .op-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--op-border); border-radius: 16px 16px 0 0; cursor: grab; }
       .op-header:active { cursor: grabbing; }
-      .op-header h3 { margin: 0; font-size: 15px; font-weight: 600; }
+      .op-header h3 { margin: 0; font-size: 15px; font-weight: 600; color: red; }
       .op-header-actions { display: flex; gap: 6px; }
       .op-toggle-btn, .op-hdr-btn { background: transparent; border: 1px solid var(--op-border); color: var(--op-text); border-radius: 10px; padding: 4px 8px; cursor: pointer; }
       .op-toggle-btn:hover, .op-hdr-btn:hover { background: var(--op-btn); }
 
       .op-content { padding: 12px; display: flex; flex-direction: column; gap: 12px; }
       .op-section { display: flex; flex-direction: column; gap: 8px; background: var(--op-subtle); border: 1px solid var(--op-border); border-radius: 12px; padding: 5px; }
-	  .op-section.resizable { display: flex; flex-direction: column; height: 300px; resize: vertical; overflow: hidden }
+	  .op-section.resizable { display: flex; flex-direction: column; resize: vertical; overflow: hidden }
 
       .op-section-title { display: flex; align-items: center; justify-content: space-between; }
       .op-title-text { font-weight: 600; }

@@ -8,6 +8,7 @@ import {
 } from "./cache";
 import { blobToImage, canvasToBlob, createCanvas, loadImage } from "./canvas";
 import {
+	MAX_OVERLAY,
 	MAX_OVERLAY_DIM,
 	MINIFY_SCALE,
 	MINIFY_SCALE_SYMBOL,
@@ -232,7 +233,7 @@ export async function buildOverlayDataForChunkUnified(
 
 	const wImg = img.width,
 		hImg = img.height;
-	if (wImg >= MAX_OVERLAY_DIM || hImg >= MAX_OVERLAY_DIM) {
+	if (MAX_OVERLAY && (wImg >= MAX_OVERLAY_DIM || hImg >= MAX_OVERLAY_DIM)) {
 		tooLargeOverlays.add(ov.id);
 		showToast(
 			`Overlay "${ov.name}" skipped: image too large (must be smaller than ${MAX_OVERLAY_DIM}×${MAX_OVERLAY_DIM}; got ${wImg}×${hImg}).`,

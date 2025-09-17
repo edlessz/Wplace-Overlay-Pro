@@ -7,7 +7,7 @@ import {
 	createHTMLCanvas,
 	loadImage,
 } from "../core/canvas";
-import { MAX_OVERLAY_DIM } from "../core/constants";
+import { MAX_OVERLAY, MAX_OVERLAY_DIM } from "../core/constants";
 import { ensureHook } from "../core/hook";
 import { type OverlayItem, saveConfig } from "../core/store";
 import { showToast } from "../core/toast";
@@ -343,7 +343,7 @@ export function buildRSModal() {
 		const W = parseInt(rs?.w.value || "0", 10);
 		const H = parseInt(rs?.h.value || "0", 10);
 		const ok = Number.isFinite(W) && Number.isFinite(H) && W > 0 && H > 0;
-		const limit = W >= MAX_OVERLAY_DIM || H >= MAX_OVERLAY_DIM;
+		const limit = MAX_OVERLAY && (W >= MAX_OVERLAY_DIM || H >= MAX_OVERLAY_DIM);
 		return ok
 			? limit
 				? `Target: ${W}×${H} (exceeds limit: must be < ${MAX_OVERLAY_DIM}×${MAX_OVERLAY_DIM})`
@@ -357,7 +357,8 @@ export function buildRSModal() {
 	}
 	function computeAdvancedFooterText() {
 		const { cols, rows } = sampleDims();
-		const limit = cols >= MAX_OVERLAY_DIM || rows >= MAX_OVERLAY_DIM;
+		const limit =
+			MAX_OVERLAY && (cols >= MAX_OVERLAY_DIM || rows >= MAX_OVERLAY_DIM);
 		return cols > 0 && rows > 0
 			? `Samples: ${cols} × ${rows} | Output: ${cols}×${rows}${limit ? ` (exceeds limit: < ${MAX_OVERLAY_DIM}×${MAX_OVERLAY_DIM})` : ""}`
 			: "Adjust multiplier/offset until dots sit at centers.";
@@ -437,6 +438,7 @@ export function buildRSModal() {
 				Number.isFinite(H) &&
 				W > 0 &&
 				H > 0 &&
+				MAX_OVERLAY &&
 				W < MAX_OVERLAY_DIM &&
 				H < MAX_OVERLAY_DIM;
 			rs.applyBtn.disabled = !ok;
@@ -547,7 +549,9 @@ export function buildRSModal() {
 		ctxRes.clearRect(0, 0, dW, dH);
 		ctxRes.drawImage(canvas, 0, 0, W, H, 0, 0, dW, dH);
 		ctxRes.restore();
-		rs.resMeta.textContent = `Output: ${W}×${H}${W >= MAX_OVERLAY_DIM || H >= MAX_OVERLAY_DIM ? ` (exceeds limit: < ${MAX_OVERLAY_DIM}×${MAX_OVERLAY_DIM})` : ""}`;
+		if (MAX_OVERLAY)
+			rs.resMeta.textContent = `Output: ${W}×${H}${W >= MAX_OVERLAY_DIM || H >= MAX_OVERLAY_DIM ? ` (exceeds limit: < ${MAX_OVERLAY_DIM}×${MAX_OVERLAY_DIM})` : ""}`;
+		else rs.resMeta.textContent = `Output: ${W}×${H}`;
 	}
 
 	rs._drawSimplePreview = drawSimplePreview;
@@ -836,7 +840,7 @@ export function buildRSModal() {
 				showToast("No samples. Adjust multiplier/offset.");
 				return;
 			}
-			if (cols >= MAX_OVERLAY_DIM || rows >= MAX_OVERLAY_DIM) {
+			if (MAX_OVERLAY && (cols >= MAX_OVERLAY_DIM || rows >= MAX_OVERLAY_DIM)) {
 				showToast(
 					`Output too large. Must be < ${MAX_OVERLAY_DIM}×${MAX_OVERLAY_DIM}.`,
 				);
@@ -876,7 +880,7 @@ export function buildRSModal() {
 					showToast("Invalid dimensions");
 					return;
 				}
-				if (W >= MAX_OVERLAY_DIM || H >= MAX_OVERLAY_DIM) {
+				if (MAX_OVERLAY && (W >= MAX_OVERLAY_DIM || H >= MAX_OVERLAY_DIM)) {
 					showToast(
 						`Too large. Must be < ${MAX_OVERLAY_DIM}×${MAX_OVERLAY_DIM}.`,
 					);
@@ -912,7 +916,7 @@ export function buildRSModal() {
 		const W = parseInt(rs?.w.value || "0", 10);
 		const H = parseInt(rs?.h.value || "0", 10);
 		const ok = Number.isFinite(W) && Number.isFinite(H) && W > 0 && H > 0;
-		const limit = W >= MAX_OVERLAY_DIM || H >= MAX_OVERLAY_DIM;
+		const limit = MAX_OVERLAY && (W >= MAX_OVERLAY_DIM || H >= MAX_OVERLAY_DIM);
 		const simpleText = ok
 			? limit
 				? `Target: ${W}×${H} (exceeds limit: must be < ${MAX_OVERLAY_DIM}×${MAX_OVERLAY_DIM})`
@@ -1022,13 +1026,14 @@ export function openRSModal(overlay: OverlayItem) {
 				const rows = Math.floor((rs?.origH - rs?.offy) / rs?.gapY);
 				rs.meta.textContent =
 					cols > 0 && rows > 0
-						? `Samples: ${cols} × ${rows} | Output: ${cols}×${rows}${cols >= MAX_OVERLAY_DIM || rows >= MAX_OVERLAY_DIM ? ` (exceeds limit: < ${MAX_OVERLAY_DIM}×${MAX_OVERLAY_DIM})` : ""}`
+						? `Samples: ${cols} × ${rows} | Output: ${cols}×${rows}${MAX_OVERLAY && (cols >= MAX_OVERLAY_DIM || rows >= MAX_OVERLAY_DIM) ? ` (exceeds limit: < ${MAX_OVERLAY_DIM}×${MAX_OVERLAY_DIM})` : ""}`
 						: "Adjust multiplier/offset until dots sit at centers.";
 			} else {
 				const W = parseInt(rs?.w.value || "0", 10);
 				const H = parseInt(rs?.h.value || "0", 10);
 				const ok = Number.isFinite(W) && Number.isFinite(H) && W > 0 && H > 0;
-				const limit = W >= MAX_OVERLAY_DIM || H >= MAX_OVERLAY_DIM;
+				const limit =
+					MAX_OVERLAY && (W >= MAX_OVERLAY_DIM || H >= MAX_OVERLAY_DIM);
 				rs.meta.textContent = ok
 					? limit
 						? `Target: ${W}×${H} (exceeds limit: must be < ${MAX_OVERLAY_DIM}×${MAX_OVERLAY_DIM})`

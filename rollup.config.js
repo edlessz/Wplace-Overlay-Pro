@@ -5,7 +5,7 @@ import pkg from "./package.json" with { type: "json" };
 export default {
 	input: "src/main.ts",
 	output: {
-		file: "dist/my-userscript.user.js",
+		file: `dist/${pkg.name}.user.js`,
 		format: "iife", // userscripts don’t support modules
 	},
 	plugins: [

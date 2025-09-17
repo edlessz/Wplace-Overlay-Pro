@@ -1,7 +1,7 @@
 /// <reference types="tampermonkey" />
 
 import { clearOverlayCache, paletteDetectionCache } from "../core/cache";
-import { MAX_OVERLAY_DIM } from "../core/constants";
+import { MAX_OVERLAY, MAX_OVERLAY_DIM } from "../core/constants";
 import { ensureHook } from "../core/hook";
 import {
 	DEFAULT_FREE_KEYS,
@@ -193,8 +193,9 @@ export function buildCCModal() {
 		const ov = cc.overlay;
 		if (!ov || !cc.processedCanvas) return;
 		if (
-			cc.processedCanvas.width >= MAX_OVERLAY_DIM ||
-			cc.processedCanvas.height >= MAX_OVERLAY_DIM
+			MAX_OVERLAY &&
+			(cc.processedCanvas.width >= MAX_OVERLAY_DIM ||
+				cc.processedCanvas.height >= MAX_OVERLAY_DIM)
 		) {
 			showToast(
 				`Image too large to apply (must be < ${MAX_OVERLAY_DIM}×${MAX_OVERLAY_DIM}).`,
