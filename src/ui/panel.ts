@@ -9,17 +9,18 @@ import {
 	applyTheme,
 	config,
 	getActiveOverlay,
+	type OverlayItem,
 	saveConfig,
 } from "../core/store";
 import { showToast } from "../core/toast";
-import { uid, uniqueName } from "../core/util";
+import { type EV_ANCHOR_SET_Event, uid, uniqueName } from "../core/util";
 import { buildCCModal, openCCModal } from "./ccModal";
 import { buildRSModal, openRSModal } from "./rsModal";
 
 let panelEl: HTMLDivElement | null = null;
 
 function $(id: string) {
-	return document.getElementById(id)!;
+	return document.getElementById(id);
 }
 
 export function createUI() {
@@ -31,13 +32,8 @@ export function createUI() {
 
 	const panelW = 340;
 	const defaultLeft = Math.max(12, window.innerWidth - panelW - 80);
-	panel.style.left =
-		(Number.isFinite(config.panelX as any)
-			? (config.panelX as any)
-			: defaultLeft) + "px";
-	panel.style.top =
-		(Number.isFinite(config.panelY as any) ? (config.panelY as any) : 120) +
-		"px";
+	panel.style.left = `${Number.isFinite(config.panelX) ? config.panelX : defaultLeft}px`;
+	panel.style.top = `${Number.isFinite(config.panelY) ? config.panelY : 120}px`;
 
 	panel.innerHTML = `
       <div class="op-header" id="op-header">
@@ -177,13 +173,17 @@ export function createUI() {
 
 	// Core → UI events
 	document.addEventListener("op-overlay-changed", updateUI);
-	document.addEventListener(EV_ANCHOR_SET, (ev: any) => {
-		const d = ev?.detail || {};
-		showToast(
-			`Anchor set for "${d.name ?? "overlay"}": chunk ${d.chunk1}/${d.chunk2} at (${d.posX}, ${d.posY}). Offset reset to (0,0).`,
-		);
-		updateUI();
-	});
+	document.addEventListener(
+		EV_ANCHOR_SET,
+		(ev: EV_ANCHOR_SET_Event & Event) => {
+			const d = ev?.detail;
+			if (d)
+				showToast(
+					`Anchor set for "${d.name ?? "overlay"}": chunk ${d.chunk1}/${d.chunk2} at (${d.posX}, ${d.posY}). Offset reset to (0,0).`,
+				);
+			updateUI();
+		},
+	);
 	document.addEventListener(EV_AUTOCAP_CHANGED, () => updateUI());
 }
 
@@ -192,8 +192,7 @@ function rebuildOverlayListUI() {
 	list.innerHTML = "";
 	for (const ov of config.overlays) {
 		const item = document.createElement("div");
-		item.className =
-			"op-item" + (ov.id === config.activeOverlayId ? " active" : "");
+		item.className = `op-item${ov.id === config.activeOverlayId ? " active" : ""}`;
 		const localTag = ov.isLocal
 			? " (local)"
 			: !ov.imageBase64
@@ -205,7 +204,7 @@ function rebuildOverlayListUI() {
         <div class="op-item-name" title="${(ov.name || "(unnamed)") + localTag}">${(ov.name || "(unnamed)") + localTag}</div>
         <button class="op-icon-btn" title="Delete overlay">🗑️</button>
     `;
-		const [radio, checkbox, nameDiv, trashBtn] = item.children as any as [
+		const [radio, checkbox, nameDiv, trashBtn] = Array.from(item.children) as [
 			HTMLInputElement,
 			HTMLInputElement,
 			HTMLDivElement,
@@ -272,7 +271,7 @@ async function addBlankOverlay() {
 	return ov;
 }
 
-async function setOverlayImageFromURL(ov: any, url: string) {
+async function setOverlayImageFromURL(ov: OverlayItem, url: string) {
 	const base64 = await urlToDataURL(url);
 	ov.imageUrl = url;
 	ov.imageBase64 = base64;
@@ -285,7 +284,7 @@ async function setOverlayImageFromURL(ov: any, url: string) {
 	updateUI();
 	showToast(`Image loaded. Placement mode ON -- click once to set anchor.`);
 }
-async function setOverlayImageFromFile(ov: any, file: File) {
+async function setOverlayImageFromFile(ov: OverlayItem, file: File) {
 	if (!file || !file.type || !file.type.startsWith("image/")) {
 		alert("Please choose an image file.");
 		return;
@@ -308,7 +307,7 @@ async function setOverlayImageFromFile(ov: any, file: File) {
 }
 
 async function importOverlayFromJSON(jsonText: string) {
-	let obj;
+	let obj = null;
 	try {
 		obj = JSON.parse(jsonText);
 	} catch {
@@ -394,7 +393,7 @@ function exportActiveOverlayToClipboard() {
 		});
 }
 function copyText(text: string) {
-	if (navigator.clipboard && navigator.clipboard.writeText)
+	if (navigator.clipboard?.writeText)
 		return navigator.clipboard.writeText(text);
 	return Promise.reject(new Error("Clipboard API not available"));
 }
@@ -488,10 +487,11 @@ function addEventListeners(panel: HTMLDivElement) {
 		updateUI();
 	});
 
-	$("op-name").addEventListener("change", async (e: any) => {
+	$("op-name").addEventListener("change", async (e: Event) => {
 		const ov = getActiveOverlay();
 		if (!ov) return;
-		const desired = (e.target.value || "").trim() || "Overlay";
+		const desired =
+			((e.target as HTMLInputElement).value || "").trim() || "Overlay";
 		if (
 			config.overlays.some(
 				(o) =>
@@ -538,9 +538,10 @@ function addEventListeners(panel: HTMLDivElement) {
 
 	const dropzone = $("op-dropzone");
 	dropzone.addEventListener("click", () => $("op-file-input").click());
-	$("op-file-input").addEventListener("change", async (e: any) => {
-		const file = e.target.files && e.target.files[0];
-		e.target.value = "";
+	$("op-file-input").addEventListener("change", async (e: Event) => {
+		const target = e.target as HTMLInputElement;
+		const file = target.files?.[0];
+		target.value = "";
 		if (!file) return;
 		const ov = getActiveOverlay();
 		if (!ov) return;
@@ -557,41 +558,44 @@ function addEventListeners(panel: HTMLDivElement) {
 			alert("Failed to load local image.");
 		}
 	});
-	["dragenter", "dragover"].forEach((evt) =>
+	["dragenter", "dragover"].forEach((evt) => {
 		dropzone.addEventListener(evt, (e) => {
 			e.preventDefault();
 			e.stopPropagation();
 			dropzone.classList.add("drop-highlight");
-		}),
-	);
-	["dragleave", "drop"].forEach((evt) =>
-		dropzone.addEventListener(evt, (e: any) => {
+		});
+	});
+	["dragleave", "drop"].forEach((evt) => {
+		dropzone.addEventListener(evt, (e: Event) => {
 			e.preventDefault();
 			e.stopPropagation();
 			if (evt === "dragleave" && e.target !== dropzone) return;
 			dropzone.classList.remove("drop-highlight");
-		}),
-	);
-	dropzone.addEventListener("drop", async (e: any) => {
-		const dt = e.dataTransfer;
-		if (!dt) return;
-		const file = dt.files && dt.files[0];
-		if (!file) return;
-		const ov = getActiveOverlay();
-		if (!ov) return;
-		if (ov.imageBase64) {
-			alert(
-				"This overlay already has an image. Create a new overlay to change the image.",
-			);
-			return;
-		}
-		try {
-			await setOverlayImageFromFile(ov, file);
-		} catch (err) {
-			console.error(err);
-			alert("Failed to load dropped image.");
-		}
+		});
 	});
+	dropzone.addEventListener(
+		"drop",
+		async (e: Event & { dataTransfer: HTMLInputElement }) => {
+			const dt = e.dataTransfer;
+			if (!dt) return;
+			const file = dt.files?.[0];
+			if (!file) return;
+			const ov = getActiveOverlay();
+			if (!ov) return;
+			if (ov.imageBase64) {
+				alert(
+					"This overlay already has an image. Create a new overlay to change the image.",
+				);
+				return;
+			}
+			try {
+				await setOverlayImageFromFile(ov, file);
+			} catch (err) {
+				console.error(err);
+				alert("Failed to load dropped image.");
+			}
+		},
+	);
 
 	const nudge = async (dx: number, dy: number) => {
 		const ov = getActiveOverlay();
@@ -607,11 +611,11 @@ function addEventListeners(panel: HTMLDivElement) {
 	$("op-nudge-left").addEventListener("click", () => nudge(-1, 0));
 	$("op-nudge-right").addEventListener("click", () => nudge(1, 0));
 
-	$("op-opacity-slider").addEventListener("input", (e: any) => {
+	$("op-opacity-slider").addEventListener("input", (e: Event) => {
 		const ov = getActiveOverlay();
 		if (!ov) return;
-		ov.opacity = parseFloat(e.target.value);
-		$("op-opacity-value").textContent = Math.round(ov.opacity * 100) + "%";
+		ov.opacity = parseFloat((e.target as HTMLInputElement).value);
+		$("op-opacity-value").textContent = `${Math.round(ov.opacity * 100)}%`;
 	});
 	$("op-opacity-slider").addEventListener("change", async () => {
 		await saveConfig(["overlays"]);
@@ -675,7 +679,7 @@ function enableDrag(panel: HTMLDivElement) {
 		const rect = panel.getBoundingClientRect();
 		startLeft = rect.left;
 		startTop = rect.top;
-		(header as any).setPointerCapture?.(e.pointerId);
+		header.setPointerCapture?.(e.pointerId);
 		e.preventDefault();
 	};
 	const onPointerMove = (e: PointerEvent) => {
@@ -684,14 +688,14 @@ function enableDrag(panel: HTMLDivElement) {
 			dy = e.clientY - startY;
 		const maxLeft = Math.max(8, window.innerWidth - panel.offsetWidth - 8);
 		const maxTop = Math.max(8, window.innerHeight - panel.offsetHeight - 8);
-		panel.style.left = clamp(startLeft + dx, 8, maxLeft) + "px";
-		panel.style.top = clamp(startTop + dy, 8, maxTop) + "px";
+		panel.style.left = `${clamp(startLeft + dx, 8, maxLeft)}px`;
+		panel.style.top = `${clamp(startTop + dy, 8, maxTop)}px`;
 		moved = true;
 	};
 	const onPointerUp = (e: PointerEvent) => {
 		if (!isDragging) return;
 		isDragging = false;
-		(header as any).releasePointerCapture?.(e.pointerId);
+		header.releasePointerCapture?.(e.pointerId);
 		if (moved) {
 			config.panelX = parseInt(panel.style.left, 10) || 0;
 			config.panelY = parseInt(panel.style.top, 10) || 0;
@@ -709,8 +713,8 @@ function enableDrag(panel: HTMLDivElement) {
 		const maxTop = Math.max(8, window.innerHeight - panel.offsetHeight - 8);
 		const newLeft = Math.min(Math.max(rect.left, 8), maxLeft);
 		const newTop = Math.min(Math.max(rect.top, 8), maxTop);
-		panel.style.left = newLeft + "px";
-		panel.style.top = newTop + "px";
+		panel.style.left = `${newLeft}px`;
+		panel.style.top = `${newTop}px`;
 		config.panelX = newLeft;
 		config.panelY = newTop;
 		saveConfig(["panelX", "panelY"]);
@@ -746,7 +750,7 @@ function updateEditorUI() {
 
 	const coords = ov.pixelUrl
 		? extractPixelCoords(ov.pixelUrl)
-		: ({ chunk1: "-", chunk2: "-", posX: "-", posY: "-" } as any);
+		: { chunk1: "-", chunk2: "-", posX: "-", posY: "-" };
 	const coordDisplay = $("op-coord-display");
 	if (coordDisplay) {
 		coordDisplay.textContent = ov.pixelUrl
@@ -804,7 +808,7 @@ export function updateUI() {
 		const ov = getActiveOverlay();
 		if (ov) {
 			($("op-opacity-slider") as HTMLInputElement).value = String(ov.opacity);
-			$("op-opacity-value").textContent = Math.round(ov.opacity * 100) + "%";
+			$("op-opacity-value").textContent = `${Math.round(ov.opacity * 100)}%`;
 		}
 	} else if (config.overlayMode === "minify") {
 		fullOverlaySettings.classList.remove("active");
@@ -823,8 +827,7 @@ export function updateUI() {
 	layeringBtns.innerHTML = "";
 	const behindBtn = document.createElement("button");
 	behindBtn.textContent = "Behind";
-	behindBtn.className =
-		"op-button" + (config.overlayMode === "behind" ? " active" : "");
+	behindBtn.className = `op-button${config.overlayMode === "behind" ? " active" : ""}`;
 	behindBtn.addEventListener("click", () => {
 		config.overlayMode = "behind";
 		saveConfig(["overlayMode"]);
@@ -833,8 +836,7 @@ export function updateUI() {
 	});
 	const aboveBtn = document.createElement("button");
 	aboveBtn.textContent = "Above";
-	aboveBtn.className =
-		"op-button" + (config.overlayMode === "above" ? " active" : "");
+	aboveBtn.className = `op-button${config.overlayMode === "above" ? " active" : ""}`;
 	aboveBtn.addEventListener("click", () => {
 		config.overlayMode = "above";
 		saveConfig(["overlayMode"]);
@@ -871,7 +873,7 @@ export function updateUI() {
 
 	const exportBtn = $("op-export-overlay") as HTMLButtonElement;
 	const ov = getActiveOverlay();
-	const canExport = !!(ov && ov.imageUrl && !ov.isLocal);
+	const canExport = !!(ov?.imageUrl && !ov.isLocal);
 	exportBtn.disabled = !canExport;
 	exportBtn.title = canExport
 		? "Export active overlay JSON"

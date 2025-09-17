@@ -9,7 +9,7 @@ import {
 } from "../core/canvas";
 import { MAX_OVERLAY_DIM } from "../core/constants";
 import { ensureHook } from "../core/hook";
-import { config, saveConfig } from "../core/store";
+import { type OverlayItem, saveConfig } from "../core/store";
 import { showToast } from "../core/toast";
 
 // dispatch when an overlay image is updated
@@ -72,7 +72,7 @@ type RSRefs = {
 };
 
 type RSState = RSRefs & {
-	ov: any | null;
+	ov: OverlayItem | null;
 	img: HTMLImageElement | null;
 	origW: number;
 	origH: number;
@@ -260,7 +260,7 @@ export function buildRSModal() {
 		w: modal.querySelector("#op-rs-w") as HTMLInputElement,
 		h: modal.querySelector("#op-rs-h") as HTMLInputElement,
 		lock: modal.querySelector("#op-rs-lock") as HTMLInputElement,
-		note: modal.querySelector("#op-rs-note") as any,
+		note: modal.querySelector("#op-rs-note"),
 		onex: modal.querySelector("#op-rs-onex") as HTMLButtonElement,
 		half: modal.querySelector("#op-rs-half") as HTMLButtonElement,
 		third: modal.querySelector("#op-rs-third") as HTMLButtonElement,
@@ -303,12 +303,12 @@ export function buildRSModal() {
 		closeBtn: modal.querySelector("#op-rs-close") as HTMLButtonElement,
 	};
 
-	const ctxPrev = refs.preview.getContext("2d", { willReadFrequently: true })!;
+	const ctxPrev = refs.preview.getContext("2d", { willReadFrequently: true });
 	const ctxSimOrig = refs.simOrig.getContext("2d", {
 		willReadFrequently: true,
-	})!;
-	const ctxSimNew = refs.simNew.getContext("2d", { willReadFrequently: true })!;
-	const ctxRes = refs.resCanvas.getContext("2d", { willReadFrequently: true })!;
+	});
+	const ctxSimNew = refs.simNew.getContext("2d", { willReadFrequently: true });
+	const ctxRes = refs.resCanvas.getContext("2d", { willReadFrequently: true });
 
 	rs = {
 		...refs,
@@ -340,8 +340,8 @@ export function buildRSModal() {
 	};
 
 	function computeSimpleFooterText() {
-		const W = parseInt(rs!.w.value || "0", 10);
-		const H = parseInt(rs!.h.value || "0", 10);
+		const W = parseInt(rs?.w.value || "0", 10);
+		const H = parseInt(rs?.h.value || "0", 10);
 		const ok = Number.isFinite(W) && Number.isFinite(H) && W > 0 && H > 0;
 		const limit = W >= MAX_OVERLAY_DIM || H >= MAX_OVERLAY_DIM;
 		return ok
@@ -351,8 +351,8 @@ export function buildRSModal() {
 			: "Enter positive width and height.";
 	}
 	function sampleDims() {
-		const cols = Math.floor((rs!.origW - rs!.offx) / rs!.gapX);
-		const rows = Math.floor((rs!.origH - rs!.offy) / rs!.gapY);
+		const cols = Math.floor((rs?.origW - rs?.offx) / rs?.gapX);
+		const rows = Math.floor((rs?.origH - rs?.offy) / rs?.gapY);
 		return { cols: Math.max(0, cols), rows: Math.max(0, rows) };
 	}
 	function computeAdvancedFooterText() {
@@ -363,58 +363,50 @@ export function buildRSModal() {
 			: "Adjust multiplier/offset until dots sit at centers.";
 	}
 	const updateFooterMeta = () => {
-		rs!.meta.textContent =
-			rs!.mode === "advanced"
-				? computeAdvancedFooterText()
-				: computeSimpleFooterText();
+		if (rs)
+			rs.meta.textContent =
+				rs?.mode === "advanced"
+					? computeAdvancedFooterText()
+					: computeSimpleFooterText();
 	};
 
 	function drawSimplePreview() {
-		if (!rs!.img) return;
-		const leftLabelH = rs!.colLeft.querySelector(".pad-top")!.clientHeight;
-		const rightLabelH = rs!.colRight.querySelector(".pad-top")!.clientHeight;
-		const leftW = rs!.colLeft.clientWidth;
-		const rightW = rs!.colRight.clientWidth;
-		const leftH = rs!.colLeft.clientHeight - leftLabelH;
-		const rightH = rs!.colRight.clientHeight - rightLabelH;
+		if (!rs || !rs.img) return;
+		const leftLabelH = rs?.colLeft.querySelector(".pad-top")?.clientHeight;
+		const rightLabelH = rs?.colRight.querySelector(".pad-top")?.clientHeight;
+		const leftW = rs?.colLeft.clientWidth;
+		const rightW = rs?.colRight.clientWidth;
+		const leftH = rs?.colLeft.clientHeight - leftLabelH;
+		const rightH = rs?.colRight.clientHeight - rightLabelH;
 
-		rs!.simOrig.width = leftW;
-		rs!.simOrig.height = leftH;
-		rs!.simNew.width = rightW;
-		rs!.simNew.height = rightH;
+		rs.simOrig.width = leftW;
+		rs.simOrig.height = leftH;
+		rs.simNew.width = rightW;
+		rs.simNew.height = rightH;
 
 		ctxSimOrig.save();
 		ctxSimOrig.imageSmoothingEnabled = false;
 		ctxSimOrig.clearRect(0, 0, leftW, leftH);
-		const sFit = Math.min(leftW / rs!.origW, leftH / rs!.origH);
-		const dW = Math.max(1, Math.floor(rs!.origW * sFit));
-		const dH = Math.max(1, Math.floor(rs!.origH * sFit));
+		const sFit = Math.min(leftW / rs.origW, leftH / rs.origH);
+		const dW = Math.max(1, Math.floor(rs.origW * sFit));
+		const dH = Math.max(1, Math.floor(rs.origH * sFit));
 		const dx0 = Math.floor((leftW - dW) / 2);
 		const dy0 = Math.floor((leftH - dH) / 2);
-		ctxSimOrig.drawImage(
-			rs!.img!,
-			0,
-			0,
-			rs!.origW,
-			rs!.origH,
-			dx0,
-			dy0,
-			dW,
-			dH,
-		);
+		ctxSimOrig.drawImage(rs.img, 0, 0, rs.origW, rs.origH, dx0, dy0, dW, dH);
 		ctxSimOrig.restore();
 
-		const W = parseInt(rs!.w.value || "0", 10);
-		const H = parseInt(rs!.h.value || "0", 10);
+		const W = parseInt(rs.w.value || "0", 10);
+		const H = parseInt(rs.h.value || "0", 10);
 		ctxSimNew.save();
 		ctxSimNew.imageSmoothingEnabled = false;
 		ctxSimNew.clearRect(0, 0, rightW, rightH);
 		if (Number.isFinite(W) && Number.isFinite(H) && W > 0 && H > 0) {
-			const tiny = createCanvas(W, H) as any;
-			const tctx = tiny.getContext("2d", { willReadFrequently: true })!;
+			const tiny = createCanvas(W, H);
+			const tctx = tiny.getContext("2d", { willReadFrequently: true });
+			if (!(tctx instanceof CanvasRenderingContext2D)) return;
 			tctx.imageSmoothingEnabled = false;
 			tctx.clearRect(0, 0, W, H);
-			tctx.drawImage(rs!.img!, 0, 0, rs!.origW, rs!.origH, 0, 0, W, H);
+			tctx.drawImage(rs.img, 0, 0, rs.origW, rs.origH, 0, 0, W, H);
 			const id = tctx.getImageData(0, 0, W, H);
 			const data = id.data;
 			for (let i = 0; i < data.length; i += 4) {
@@ -429,29 +421,17 @@ export function buildRSModal() {
 			const dy2 = Math.floor((rightH - dH2) / 2);
 			ctxSimNew.drawImage(tiny, 0, 0, W, H, dx2, dy2, dW2, dH2);
 		} else {
-			ctxSimNew.drawImage(
-				rs!.img!,
-				0,
-				0,
-				rs!.origW,
-				rs!.origH,
-				dx0,
-				dy0,
-				dW,
-				dH,
-			);
+			ctxSimNew.drawImage(rs.img, 0, 0, rs.origW, rs.origH, dx0, dy0, dW, dH);
 		}
 		ctxSimNew.restore();
 	}
 
 	function syncAdvancedMeta() {
-		const { cols, rows } = sampleDims();
-		const limit = cols >= MAX_OVERLAY_DIM || rows >= MAX_OVERLAY_DIM;
-		if (rs!.mode === "advanced") {
-			rs!.applyBtn.disabled = !rs!.calcReady;
+		if (rs && rs.mode === "advanced") {
+			rs.applyBtn.disabled = !rs.calcReady;
 		} else {
-			const W = parseInt(rs!.w.value || "0", 10),
-				H = parseInt(rs!.h.value || "0", 10);
+			const W = parseInt(rs?.w.value || "0", 10),
+				H = parseInt(rs?.h.value || "0", 10);
 			const ok =
 				Number.isFinite(W) &&
 				Number.isFinite(H) &&
@@ -459,62 +439,52 @@ export function buildRSModal() {
 				H > 0 &&
 				W < MAX_OVERLAY_DIM &&
 				H < MAX_OVERLAY_DIM;
-			rs!.applyBtn.disabled = !ok;
+			rs.applyBtn.disabled = !ok;
 		}
 		updateFooterMeta();
 	}
 	function drawAdvancedPreview() {
-		if (rs!.mode !== "advanced" || !rs!.img) return;
-		const w = rs!.origW,
-			h = rs!.origH;
+		if (!rs || rs.mode !== "advanced" || !rs.img) return;
+		const w = rs.origW,
+			h = rs.origH;
 
-		const destW = Math.max(50, Math.floor(rs!.advWrap.clientWidth));
-		const destH = Math.max(50, Math.floor(rs!.advWrap.clientHeight));
-		rs!.preview.width = destW;
-		rs!.preview.height = destH;
+		const destW = Math.max(50, Math.floor(rs?.advWrap.clientWidth));
+		const destH = Math.max(50, Math.floor(rs?.advWrap.clientHeight));
+		rs.preview.width = destW;
+		rs.preview.height = destH;
 
-		const sw = Math.max(1, Math.floor(destW / rs!.zoom));
-		const sh = Math.max(1, Math.floor(destH / rs!.zoom));
+		const sw = Math.max(1, Math.floor(destW / rs?.zoom));
+		const sh = Math.max(1, Math.floor(destH / rs?.zoom));
 		const maxX = Math.max(0, w - sw);
 		const maxY = Math.max(0, h - sh);
-		rs!.viewX = Math.min(Math.max(0, rs!.viewX), maxX);
-		rs!.viewY = Math.min(Math.max(0, rs!.viewY), maxY);
+		rs.viewX = Math.min(Math.max(0, rs?.viewX), maxX);
+		rs.viewY = Math.min(Math.max(0, rs?.viewY), maxY);
 
 		ctxPrev.save();
 		ctxPrev.imageSmoothingEnabled = false;
 		ctxPrev.clearRect(0, 0, destW, destH);
-		ctxPrev.drawImage(
-			rs!.img!,
-			rs!.viewX,
-			rs!.viewY,
-			sw,
-			sh,
-			0,
-			0,
-			destW,
-			destH,
-		);
+		ctxPrev.drawImage(rs.img, rs.viewX, rs.viewY, sw, sh, 0, 0, destW, destH);
 
-		if (rs!.gridToggle.checked && rs!.gapX >= 1 && rs!.gapY >= 1) {
+		if (rs?.gridToggle.checked && rs?.gapX >= 1 && rs?.gapY >= 1) {
 			ctxPrev.strokeStyle = "rgba(255,59,48,0.45)";
 			ctxPrev.lineWidth = 1;
-			const startGX = Math.ceil((rs!.viewX - rs!.offx) / rs!.gapX);
-			const endGX = Math.floor((rs!.viewX + sw - rs!.offx) / rs!.gapX);
-			const startGY = Math.ceil((rs!.viewY - rs!.offy) / rs!.gapY);
-			const endGY = Math.floor((rs!.viewY + sh - rs!.offy) / rs!.gapY);
+			const startGX = Math.ceil((rs?.viewX - rs?.offx) / rs?.gapX);
+			const endGX = Math.floor((rs?.viewX + sw - rs?.offx) / rs?.gapX);
+			const startGY = Math.ceil((rs?.viewY - rs?.offy) / rs?.gapY);
+			const endGY = Math.floor((rs?.viewY + sh - rs?.offy) / rs?.gapY);
 			const linesX = Math.max(0, endGX - startGX + 1);
 			const linesY = Math.max(0, endGY - startGY + 1);
 			if (linesX <= 4000 && linesY <= 4000) {
 				ctxPrev.beginPath();
 				for (let gx = startGX; gx <= endGX; gx++) {
-					const x = rs!.offx + gx * rs!.gapX;
-					const px = Math.round((x - rs!.viewX) * rs!.zoom);
+					const x = rs?.offx + gx * rs?.gapX;
+					const px = Math.round((x - rs?.viewX) * rs?.zoom);
 					ctxPrev.moveTo(px + 0.5, 0);
 					ctxPrev.lineTo(px + 0.5, destH);
 				}
 				for (let gy = startGY; gy <= endGY; gy++) {
-					const y = rs!.offy + gy * rs!.gapY;
-					const py = Math.round((y - rs!.viewY) * rs!.zoom);
+					const y = rs?.offy + gy * rs?.gapY;
+					const py = Math.round((y - rs?.viewY) * rs?.zoom);
 					ctxPrev.moveTo(0, py + 0.5);
 					ctxPrev.lineTo(destW, py + 0.5);
 				}
@@ -522,26 +492,26 @@ export function buildRSModal() {
 			}
 		}
 
-		if (rs!.gapX >= 1 && rs!.gapY >= 1) {
+		if (rs?.gapX >= 1 && rs?.gapY >= 1) {
 			ctxPrev.fillStyle = "#ff3b30";
-			const cx0 = rs!.offx + Math.floor(rs!.gapX / 2);
-			const cy0 = rs!.offy + Math.floor(rs!.gapY / 2);
+			const cx0 = rs?.offx + Math.floor(rs?.gapX / 2);
+			const cy0 = rs?.offy + Math.floor(rs?.gapY / 2);
 			if (cx0 >= 0 && cy0 >= 0) {
-				const startX = Math.ceil((rs!.viewX - cx0) / rs!.gapX);
-				const startY = Math.ceil((rs!.viewY - cy0) / rs!.gapY);
-				const endY = Math.floor((rs!.viewY + sh - 1 - cy0) / rs!.gapY);
-				const endX2 = Math.floor((rs!.viewX + sw - 1 - cx0) / rs!.gapX);
-				const r = rs!.dotr;
+				const startX = Math.ceil((rs?.viewX - cx0) / rs?.gapX);
+				const startY = Math.ceil((rs?.viewY - cy0) / rs?.gapY);
+				const endY = Math.floor((rs?.viewY + sh - 1 - cy0) / rs?.gapY);
+				const endX2 = Math.floor((rs?.viewX + sw - 1 - cx0) / rs?.gapX);
+				const r = rs?.dotr;
 				const dotsX = Math.max(0, endX2 - startX + 1);
 				const dotsY = Math.max(0, endY - startY + 1);
 				const maxDots = 300000;
 				if (dotsX * dotsY <= maxDots) {
 					for (let gy = startY; gy <= endY; gy++) {
-						const y = cy0 + gy * rs!.gapY;
+						const y = cy0 + gy * rs?.gapY;
 						for (let gx = startX; gx <= endX2; gx++) {
-							const x = cx0 + gx * rs!.gapX;
-							const px = Math.round((x - rs!.viewX) * rs!.zoom);
-							const py = Math.round((y - rs!.viewY) * rs!.zoom);
+							const x = cx0 + gx * rs?.gapX;
+							const px = Math.round((x - rs?.viewX) * rs?.zoom);
+							const py = Math.round((y - rs?.viewY) * rs?.zoom);
 							ctxPrev.beginPath();
 							ctxPrev.arc(px, py, r, 0, Math.PI * 2);
 							ctxPrev.fill();
@@ -554,11 +524,13 @@ export function buildRSModal() {
 	}
 
 	function drawAdvancedResultPreview() {
-		const canvas = rs!.calcCanvas;
-		const wrap = rs!.resWrap;
+		if (!rs) return;
+
+		const canvas = rs?.calcCanvas;
+		const wrap = rs?.resWrap;
 		if (!wrap || !canvas) {
-			ctxRes.clearRect(0, 0, rs!.resCanvas.width, rs!.resCanvas.height);
-			rs!.resMeta.textContent = "No result. Click Calculate.";
+			ctxRes.clearRect(0, 0, rs?.resCanvas.width, rs?.resCanvas.height);
+			rs.resMeta.textContent = "No result. Click Calculate.";
 			return;
 		}
 		const W = canvas.width,
@@ -568,14 +540,14 @@ export function buildRSModal() {
 		const s = Math.min(availW / W, availH / H);
 		const dW = Math.max(1, Math.floor(W * s));
 		const dH = Math.max(1, Math.floor(H * s));
-		rs!.resCanvas.width = dW;
-		rs!.resCanvas.height = dH;
+		rs.resCanvas.width = dW;
+		rs.resCanvas.height = dH;
 		ctxRes.save();
 		ctxRes.imageSmoothingEnabled = false;
 		ctxRes.clearRect(0, 0, dW, dH);
 		ctxRes.drawImage(canvas, 0, 0, W, H, 0, 0, dW, dH);
 		ctxRes.restore();
-		rs!.resMeta.textContent = `Output: ${W}×${H}${W >= MAX_OVERLAY_DIM || H >= MAX_OVERLAY_DIM ? ` (exceeds limit: < ${MAX_OVERLAY_DIM}×${MAX_OVERLAY_DIM})` : ""}`;
+		rs.resMeta.textContent = `Output: ${W}×${H}${W >= MAX_OVERLAY_DIM || H >= MAX_OVERLAY_DIM ? ` (exceeds limit: < ${MAX_OVERLAY_DIM}×${MAX_OVERLAY_DIM})` : ""}`;
 	}
 
 	rs._drawSimplePreview = drawSimplePreview;
@@ -583,16 +555,17 @@ export function buildRSModal() {
 	rs._drawAdvancedResultPreview = drawAdvancedResultPreview;
 
 	const setMode = (m: "simple" | "advanced") => {
-		rs!.mode = m;
-		rs!.tabSimple.classList.toggle("active", m === "simple");
-		rs!.tabAdvanced.classList.toggle("active", m === "advanced");
-		rs!.paneSimple.classList.toggle("show", m === "simple");
-		rs!.paneAdvanced.classList.toggle("show", m === "advanced");
+		if (!rs || rs.mode === m) return;
+		rs.mode = m;
+		rs.tabSimple.classList.toggle("active", m === "simple");
+		rs.tabAdvanced.classList.toggle("active", m === "advanced");
+		rs.paneSimple.classList.toggle("show", m === "simple");
+		rs.paneAdvanced.classList.toggle("show", m === "advanced");
 		updateFooterMeta();
 
-		rs!.calcBtn.style.display = m === "advanced" ? "inline-block" : "none";
+		rs.calcBtn.style.display = m === "advanced" ? "inline-block" : "none";
 		if (m === "advanced") {
-			rs!.applyBtn.disabled = !rs!.calcReady;
+			rs.applyBtn.disabled = !rs?.calcReady;
 		} else {
 			syncSimpleNote();
 		}
@@ -606,37 +579,34 @@ export function buildRSModal() {
 		}
 	};
 	rs._setMode = (m) => {
+		if (!rs) return;
 		const evt = new Event("click");
-		(m === "simple" ? rs!.tabSimple : rs!.tabAdvanced).dispatchEvent(evt);
+		(m === "simple" ? rs.tabSimple : rs.tabAdvanced).dispatchEvent(evt);
 	};
 	rs.tabSimple.addEventListener("click", () => setMode("simple"));
 	rs.tabAdvanced.addEventListener("click", () => setMode("advanced"));
 
 	function onWidthInput() {
-		if (rs!.updating) return;
-		rs!.updating = true;
-		const W = parseInt(rs!.w.value || "0", 10);
-		if (rs!.lock.checked && rs!.origW > 0 && rs!.origH > 0 && W > 0) {
-			rs!.h.value = String(
-				Math.max(1, Math.round((W * rs!.origH) / rs!.origW)),
-			);
+		if (!rs || rs.updating) return;
+		rs.updating = true;
+		const W = parseInt(rs?.w.value || "0", 10);
+		if (rs.lock.checked && rs?.origW > 0 && rs?.origH > 0 && W > 0) {
+			rs.h.value = String(Math.max(1, Math.round((W * rs?.origH) / rs?.origW)));
 		}
-		rs!.updating = false;
+		rs.updating = false;
 		syncSimpleNote();
-		if (rs!.mode === "simple") drawSimplePreview();
+		if (rs?.mode === "simple") drawSimplePreview();
 	}
 	function onHeightInput() {
-		if (rs!.updating) return;
-		rs!.updating = true;
-		const H = parseInt(rs!.h.value || "0", 10);
-		if (rs!.lock.checked && rs!.origW > 0 && rs!.origH > 0 && H > 0) {
-			rs!.w.value = String(
-				Math.max(1, Math.round((H * rs!.origW) / rs!.origH)),
-			);
+		if (!rs || rs.updating) return;
+		rs.updating = true;
+		const H = parseInt(rs?.h.value || "0", 10);
+		if (rs.lock.checked && rs?.origW > 0 && rs?.origH > 0 && H > 0) {
+			rs.w.value = String(Math.max(1, Math.round((H * rs?.origW) / rs?.origH)));
 		}
-		rs!.updating = false;
+		rs.updating = false;
 		syncSimpleNote();
-		if (rs!.mode === "simple") drawSimplePreview();
+		if (rs.mode === "simple") drawSimplePreview();
 	}
 	rs.w.addEventListener("input", onWidthInput);
 	rs.h.addEventListener("input", onHeightInput);
@@ -661,7 +631,7 @@ export function buildRSModal() {
 		drawSimplePreview();
 	});
 	rs.applyScale.addEventListener("click", () => {
-		const s = parseFloat(rs!.scale.value || "");
+		const s = parseFloat(rs?.scale.value || "");
 		if (!Number.isFinite(s) || s <= 0) {
 			showToast("Enter a valid scale factor > 0");
 			return;
@@ -671,23 +641,23 @@ export function buildRSModal() {
 	});
 
 	const markCalcStale = () => {
-		if (rs!.mode === "advanced") {
-			rs!.calcReady = false;
-			rs!.applyBtn.disabled = true;
+		if (!rs || rs?.mode === "advanced") {
+			rs.calcReady = false;
+			rs.applyBtn.disabled = true;
 			drawAdvancedResultPreview();
 			updateFooterMeta();
 		}
 	};
 
 	const onMultChange = (v: string) => {
-		if (rs!.updating) return;
+		if (!rs || rs.updating) return;
 		const parsed = parseFloat(v);
 		if (!Number.isFinite(parsed)) return;
 		const clamped = Math.min(Math.max(parsed, 1), 128);
-		rs!.mult = clamped;
-		if (rs!.bind.checked) {
-			rs!.gapX = clamped;
-			rs!.gapY = clamped;
+		rs.mult = clamped;
+		if (rs.bind.checked) {
+			rs.gapX = clamped;
+			rs.gapY = clamped;
 		}
 		syncAdvFieldsToState();
 		syncAdvancedMeta();
@@ -703,9 +673,9 @@ export function buildRSModal() {
 		onMultChange(v);
 	});
 	rs.bind.addEventListener("change", () => {
-		if (rs!.bind.checked) {
-			rs!.gapX = rs!.mult;
-			rs!.gapY = rs!.mult;
+		if (!rs || rs?.bind.checked) {
+			rs.gapX = rs?.mult;
+			rs.gapY = rs?.mult;
 			syncAdvFieldsToState();
 		}
 		syncAdvancedMeta();
@@ -713,12 +683,14 @@ export function buildRSModal() {
 		markCalcStale();
 	});
 	rs.blockW.addEventListener("input", (e) => {
+		if (!rs) return;
+
 		const val = parseFloat((e.target as HTMLInputElement).value);
 		if (!Number.isFinite(val)) return;
-		rs!.gapX = Math.min(Math.max(val, 1), 4096);
-		if (rs!.bind.checked) {
-			rs!.mult = rs!.gapX;
-			rs!.gapY = rs!.gapX;
+		rs.gapX = Math.min(Math.max(val, 1), 4096);
+		if (rs?.bind.checked) {
+			rs.mult = rs.gapX;
+			rs.gapY = rs.gapX;
 		}
 		syncAdvFieldsToState();
 		syncAdvancedMeta();
@@ -726,12 +698,14 @@ export function buildRSModal() {
 		markCalcStale();
 	});
 	rs.blockH.addEventListener("input", (e) => {
+		if (!rs) return;
+
 		const val = parseFloat((e.target as HTMLInputElement).value);
 		if (!Number.isFinite(val)) return;
-		rs!.gapY = Math.min(Math.max(val, 1), 4096);
-		if (rs!.bind.checked) {
-			rs!.mult = rs!.gapY;
-			rs!.gapX = rs!.gapY;
+		rs.gapY = Math.min(Math.max(val, 1), 4096);
+		if (rs.bind.checked) {
+			rs.mult = rs.gapY;
+			rs.gapX = rs.gapY;
 		}
 		syncAdvFieldsToState();
 		syncAdvancedMeta();
@@ -741,8 +715,9 @@ export function buildRSModal() {
 	rs.offX.addEventListener("input", (e) => {
 		const val = parseFloat((e.target as HTMLInputElement).value);
 		if (!Number.isFinite(val)) return;
-		rs!.offx = Math.min(Math.max(val, 0), Math.max(0, rs!.origH - 0.0001));
-		rs!.viewX = Math.min(rs!.viewX, Math.max(0, rs!.origW - 1));
+		if (!rs) return;
+		rs.offx = Math.min(Math.max(val, 0), Math.max(0, rs.origH - 0.0001));
+		rs.viewX = Math.min(rs.viewX, Math.max(0, rs.origW - 1));
 		syncAdvancedMeta();
 		drawAdvancedPreview();
 		markCalcStale();
@@ -750,39 +725,42 @@ export function buildRSModal() {
 	rs.offY.addEventListener("input", (e) => {
 		const val = parseFloat((e.target as HTMLInputElement).value);
 		if (!Number.isFinite(val)) return;
-		rs!.offy = Math.min(Math.max(val, 0), Math.max(0, rs!.origH - 0.0001));
-		rs!.viewY = Math.min(rs!.viewY, Math.max(0, rs!.origH - 1));
+		if (!rs) return;
+		rs.offy = Math.min(Math.max(val, 0), Math.max(0, rs.origH - 0.0001));
+		rs.viewY = Math.min(rs.viewY, Math.max(0, rs.origH - 1));
 		syncAdvancedMeta();
 		drawAdvancedPreview();
 		markCalcStale();
 	});
 	rs.dotR.addEventListener("input", (e) => {
-		rs!.dotr = Math.max(
+		if (!rs) return;
+		rs.dotr = Math.max(
 			1,
 			Math.round(Number((e.target as HTMLInputElement).value) || 1),
 		);
-		rs!.dotRVal.textContent = String(rs!.dotr);
+		rs.dotRVal.textContent = String(rs.dotr);
 		drawAdvancedPreview();
 	});
 	rs.gridToggle.addEventListener("change", drawAdvancedPreview);
 
 	function applyZoom(factor: number) {
-		const destW = Math.max(50, Math.floor(rs!.advWrap.clientWidth));
-		const destH = Math.max(50, Math.floor(rs!.advWrap.clientHeight));
-		const sw = Math.max(1, Math.floor(destW / rs!.zoom));
-		const sh = Math.max(1, Math.floor(destH / rs!.zoom));
-		const cx = rs!.viewX + sw / 2;
-		const cy = rs!.viewY + sh / 2;
-		rs!.zoom = Math.min(32, Math.max(0.1, rs!.zoom * factor));
-		const sw2 = Math.max(1, Math.floor(destW / rs!.zoom));
-		const sh2 = Math.max(1, Math.floor(destH / rs!.zoom));
-		rs!.viewX = Math.min(
+		const destW = Math.max(50, Math.floor(rs?.advWrap.clientWidth));
+		const destH = Math.max(50, Math.floor(rs?.advWrap.clientHeight));
+		const sw = Math.max(1, Math.floor(destW / rs?.zoom));
+		const sh = Math.max(1, Math.floor(destH / rs?.zoom));
+		const cx = rs?.viewX + sw / 2;
+		const cy = rs?.viewY + sh / 2;
+		if (!rs) return;
+		rs.zoom = Math.min(32, Math.max(0.1, rs.zoom * factor));
+		const sw2 = Math.max(1, Math.floor(destW / rs.zoom));
+		const sh2 = Math.max(1, Math.floor(destH / rs.zoom));
+		rs.viewX = Math.min(
 			Math.max(0, Math.round(cx - sw2 / 2)),
-			Math.max(0, rs!.origW - sw2),
+			Math.max(0, rs.origW - sw2),
 		);
-		rs!.viewY = Math.min(
+		rs.viewY = Math.min(
 			Math.max(0, Math.round(cy - sh2 / 2)),
-			Math.max(0, rs!.origH - sh2),
+			Math.max(0, rs.origH - sh2),
 		);
 		drawAdvancedPreview();
 	}
@@ -801,40 +779,43 @@ export function buildRSModal() {
 
 	const onPanDown = (e: PointerEvent) => {
 		if ((e.target as HTMLElement).closest(".op-rs-zoom")) return;
-		rs!.panning = true;
-		rs!.panStart = {
+		if (!rs) return;
+		rs.panning = true;
+		rs.panStart = {
 			x: e.clientX,
 			y: e.clientY,
-			viewX: rs!.viewX,
-			viewY: rs!.viewY,
+			viewX: rs.viewX,
+			viewY: rs.viewY,
 		};
-		rs!.advWrap.classList.remove("op-pan-grab");
-		rs!.advWrap.classList.add("op-pan-grabbing");
-		(rs!.advWrap as any).setPointerCapture?.(e.pointerId);
+		rs?.advWrap.classList.remove("op-pan-grab");
+		rs?.advWrap.classList.add("op-pan-grabbing");
+		rs?.advWrap.setPointerCapture?.(e.pointerId);
 	};
 	const onPanMove = (e: PointerEvent) => {
-		if (!rs!.panning) return;
-		const dx = e.clientX - rs!.panStart!.x;
-		const dy = e.clientY - rs!.panStart!.y;
-		const wrapW = rs!.advWrap.clientWidth;
-		const wrapH = rs!.advWrap.clientHeight;
-		const sw = Math.max(1, Math.floor(wrapW / rs!.zoom));
-		const sh = Math.max(1, Math.floor(wrapH / rs!.zoom));
-		let nx = rs!.panStart!.viewX - Math.round(dx / rs!.zoom);
-		let ny = rs!.panStart!.viewY - Math.round(dy / rs!.zoom);
-		nx = Math.min(Math.max(0, nx), Math.max(0, rs!.origW - sw));
-		ny = Math.min(Math.max(0, ny), Math.max(0, rs!.origH - sh));
-		rs!.viewX = nx;
-		rs!.viewY = ny;
+		if (!rs?.panning) return;
+		const dx = e.clientX - rs?.panStart?.x;
+		const dy = e.clientY - rs?.panStart?.y;
+		const wrapW = rs?.advWrap.clientWidth;
+		const wrapH = rs?.advWrap.clientHeight;
+		const sw = Math.max(1, Math.floor(wrapW / rs?.zoom));
+		const sh = Math.max(1, Math.floor(wrapH / rs?.zoom));
+		let nx = rs?.panStart?.viewX - Math.round(dx / rs?.zoom);
+		let ny = rs?.panStart?.viewY - Math.round(dy / rs?.zoom);
+		nx = Math.min(Math.max(0, nx), Math.max(0, rs?.origW - sw));
+		ny = Math.min(Math.max(0, ny), Math.max(0, rs?.origH - sh));
+		if (!rs) return;
+		rs.viewX = nx;
+		rs.viewY = ny;
 		drawAdvancedPreview();
 	};
 	const onPanUp = (e: PointerEvent) => {
-		if (!rs!.panning) return;
-		rs!.panning = false;
-		rs!.panStart = null;
-		rs!.advWrap.classList.remove("op-pan-grabbing");
-		rs!.advWrap.classList.add("op-pan-grab");
-		(rs!.advWrap as any).releasePointerCapture?.(e.pointerId);
+		if (!rs?.panning) return;
+		if (!rs) return;
+		rs.panning = false;
+		rs.panStart = null;
+		rs?.advWrap.classList.remove("op-pan-grabbing");
+		rs?.advWrap.classList.add("op-pan-grab");
+		rs?.advWrap.releasePointerCapture?.(e.pointerId);
 	};
 	rs.advWrap.addEventListener("pointerdown", onPanDown);
 	rs.advWrap.addEventListener("pointermove", onPanMove);
@@ -848,7 +829,7 @@ export function buildRSModal() {
 	backdrop.addEventListener("click", close);
 
 	rs.calcBtn.addEventListener("click", async () => {
-		if (rs!.mode !== "advanced" || !rs!.img) return;
+		if (rs?.mode !== "advanced" || !rs?.img) return;
 		try {
 			const { cols, rows } = sampleDims();
 			if (cols <= 0 || rows <= 0) {
@@ -862,19 +843,20 @@ export function buildRSModal() {
 				return;
 			}
 			const canvas = await reconstructViaGrid(
-				rs!.img,
-				rs!.origW,
-				rs!.origH,
-				rs!.offx,
-				rs!.offy,
-				rs!.gapX,
-				rs!.gapY,
+				rs?.img,
+				rs?.origW,
+				rs?.origH,
+				rs?.offx,
+				rs?.offy,
+				rs?.gapX,
+				rs?.gapY,
 			);
-			rs!.calcCanvas = canvas;
-			rs!.calcCols = cols;
-			rs!.calcRows = rows;
-			rs!.calcReady = true;
-			rs!.applyBtn.disabled = false;
+			if (!rs) return;
+			rs.calcCanvas = canvas;
+			rs.calcCols = cols;
+			rs.calcRows = rows;
+			rs.calcReady = true;
+			rs.applyBtn.disabled = false;
 			drawAdvancedResultPreview();
 			updateFooterMeta();
 			showToast(`Calculated ${cols}×${rows}. Review preview, then Apply.`);
@@ -885,11 +867,11 @@ export function buildRSModal() {
 	});
 
 	rs.applyBtn.addEventListener("click", async () => {
-		if (!rs!.ov) return;
+		if (!rs?.ov) return;
 		try {
-			if (rs!.mode === "simple") {
-				const W = parseInt(rs!.w.value || "0", 10);
-				const H = parseInt(rs!.h.value || "0", 10);
+			if (rs?.mode === "simple") {
+				const W = parseInt(rs?.w.value || "0", 10);
+				const H = parseInt(rs?.h.value || "0", 10);
 				if (!Number.isFinite(W) || !Number.isFinite(H) || W <= 0 || H <= 0) {
 					showToast("Invalid dimensions");
 					return;
@@ -900,24 +882,24 @@ export function buildRSModal() {
 					);
 					return;
 				}
-				await resizeOverlayImage(rs!.ov, W, H);
+				await resizeOverlayImage(rs?.ov, W, H);
 				closeRSModal();
 				showToast(`Resized to ${W}×${H}.`);
 			} else {
-				if (!rs!.calcReady || !rs!.calcCanvas) {
+				if (!rs?.calcReady || !rs?.calcCanvas) {
 					showToast("Calculate first.");
 					return;
 				}
-				const dataUrl = await canvasToDataURLSafe(rs!.calcCanvas);
-				rs!.ov.imageBase64 = dataUrl;
-				rs!.ov.imageUrl = null;
-				rs!.ov.isLocal = true;
+				const dataUrl = await canvasToDataURLSafe(rs?.calcCanvas);
+				rs.ov.imageBase64 = dataUrl;
+				rs.ov.imageUrl = null;
+				rs.ov.isLocal = true;
 				await saveConfig(["overlays"]);
 				clearOverlayCache();
 				ensureHook();
 				emitOverlayChanged();
 				closeRSModal();
-				showToast(`Applied ${rs!.calcCols}×${rs!.calcRows}.`);
+				showToast(`Applied ${rs?.calcCols}×${rs?.calcRows}.`);
 			}
 		} catch (e) {
 			console.error(e);
@@ -926,8 +908,9 @@ export function buildRSModal() {
 	});
 
 	function syncSimpleNote() {
-		const W = parseInt(rs!.w.value || "0", 10);
-		const H = parseInt(rs!.h.value || "0", 10);
+		if (!rs) return;
+		const W = parseInt(rs?.w.value || "0", 10);
+		const H = parseInt(rs?.h.value || "0", 10);
 		const ok = Number.isFinite(W) && Number.isFinite(H) && W > 0 && H > 0;
 		const limit = W >= MAX_OVERLAY_DIM || H >= MAX_OVERLAY_DIM;
 		const simpleText = ok
@@ -935,115 +918,118 @@ export function buildRSModal() {
 				? `Target: ${W}×${H} (exceeds limit: must be < ${MAX_OVERLAY_DIM}×${MAX_OVERLAY_DIM})`
 				: `Target: ${W}×${H} (OK)`
 			: "Enter positive width and height.";
-		if (rs!.note) rs!.note.textContent = simpleText;
-		if (rs!.mode === "simple") rs!.applyBtn.disabled = !ok || limit;
-		if (rs!.mode === "simple") rs!.meta.textContent = simpleText;
+		if (rs?.note) rs.note.textContent = simpleText;
+		if (rs?.mode === "simple") rs.applyBtn.disabled = !ok || limit;
+		if (rs?.mode === "simple") rs.meta.textContent = simpleText;
 	}
 	function applyScaleToFields(scale: number) {
-		const W = Math.max(1, Math.round(rs!.origW * scale));
-		const H = Math.max(1, Math.round(rs!.origH * scale));
-		rs!.updating = true;
-		rs!.w.value = String(W);
-		rs!.h.value = rs!.lock.checked
-			? String(Math.max(1, Math.round((W * rs!.origH) / rs!.origW)))
+		const W = Math.max(1, Math.round(rs?.origW * scale));
+		const H = Math.max(1, Math.round(rs?.origH * scale));
+		if (!rs) return;
+		rs.updating = true;
+		rs.w.value = String(W);
+		rs.h.value = rs.lock.checked
+			? String(Math.max(1, Math.round((W * rs.origH) / rs.origW)))
 			: String(H);
-		rs!.updating = false;
+		rs.updating = false;
 		syncSimpleNote();
 	}
 	function syncAdvFieldsToState() {
-		rs!.updating = true;
-		rs!.multRange.value = String(rs!.mult);
-		rs!.multInput.value = String(rs!.mult);
-		rs!.blockW.value = String(rs!.gapX);
-		rs!.blockH.value = String(rs!.gapY);
-		rs!.offX.value = String(rs!.offx);
-		rs!.offY.value = String(rs!.offy);
-		rs!.dotR.value = String(rs!.dotr);
-		rs!.dotRVal.textContent = String(rs!.dotr);
-		rs!.updating = false;
+		if (!rs) return;
+		rs.updating = true;
+		rs.multRange.value = String(rs.mult);
+		rs.multInput.value = String(rs.mult);
+		rs.blockW.value = String(rs.gapX);
+		rs.blockH.value = String(rs.gapY);
+		rs.offX.value = String(rs.offx);
+		rs.offY.value = String(rs.offy);
+		rs.dotR.value = String(rs.dotr);
+		rs.dotRVal.textContent = String(rs.dotr);
+		rs.updating = false;
 	}
 
 	rs._syncAdvancedMeta = syncAdvancedMeta;
 	rs._syncSimpleNote = syncSimpleNote;
 
 	rs._resizeHandler = () => {
-		if (rs!.mode === "simple") rs!._drawSimplePreview?.();
+		if (rs?.mode === "simple") rs?._drawSimplePreview?.();
 		else {
-			rs!._drawAdvancedPreview?.();
-			rs!._drawAdvancedResultPreview?.();
+			rs?._drawAdvancedPreview?.();
+			rs?._drawAdvancedResultPreview?.();
 		}
 	};
 	window.addEventListener("resize", rs._resizeHandler);
 }
 
-export function openRSModal(overlay: any) {
+export function openRSModal(overlay: OverlayItem) {
 	if (!rs) return;
 	rs.ov = overlay;
 
 	const img = new Image();
 	img.onload = () => {
-		rs!.img = img;
-		rs!.origW = img.width;
-		rs!.origH = img.height;
+		if (!rs) return;
+		rs.img = img;
+		rs.origW = img.width;
+		rs.origH = img.height;
 
-		rs!.orig.value = `${rs!.origW}×${rs!.origH}`;
-		rs!.w.value = String(rs!.origW);
-		rs!.h.value = String(rs!.origH);
-		rs!.lock.checked = true;
+		rs.orig.value = `${rs.origW}×${rs.origH}`;
+		rs.w.value = String(rs.origW);
+		rs.h.value = String(rs.origH);
+		rs.lock.checked = true;
 
-		rs!.zoom = 1.0;
-		rs!.mult = 4;
-		rs!.gapX = 4;
-		rs!.gapY = 4;
-		rs!.offx = 0;
-		rs!.offy = 0;
-		rs!.dotr = 1;
-		rs!.viewX = 0;
-		rs!.viewY = 0;
+		rs.zoom = 1.0;
+		rs.mult = 4;
+		rs.gapX = 4;
+		rs.gapY = 4;
+		rs.offx = 0;
+		rs.offy = 0;
+		rs.dotr = 1;
+		rs.viewX = 0;
+		rs.viewY = 0;
 
-		rs!.bind.checked = true;
-		rs!.multRange.value = "4";
-		rs!.multInput.value = "4";
-		rs!.blockW.value = "4";
-		rs!.blockH.value = "4";
-		rs!.offX.value = "0";
-		rs!.offY.value = "0";
-		rs!.dotR.value = "1";
-		rs!.dotRVal.textContent = "1";
-		rs!.gridToggle.checked = true;
+		rs.bind.checked = true;
+		rs.multRange.value = "4";
+		rs.multInput.value = "4";
+		rs.blockW.value = "4";
+		rs.blockH.value = "4";
+		rs.offX.value = "0";
+		rs.offY.value = "0";
+		rs.dotR.value = "1";
+		rs.dotRVal.textContent = "1";
+		rs.gridToggle.checked = true;
 
-		rs!.calcCanvas = null;
-		rs!.calcCols = 0;
-		rs!.calcRows = 0;
-		rs!.calcReady = false;
-		rs!.applyBtn.disabled = rs!.mode === "advanced";
+		rs.calcCanvas = null;
+		rs.calcCols = 0;
+		rs.calcRows = 0;
+		rs.calcReady = false;
+		rs.applyBtn.disabled = rs.mode === "advanced";
 
-		rs!._setMode!("simple");
+		rs._setMode?.("simple");
 
 		document.body.classList.add("op-scroll-lock");
-		rs!.backdrop.classList.add("show");
-		rs!.modal.style.display = "flex";
+		rs.backdrop.classList.add("show");
+		rs.modal.style.display = "flex";
 
-		rs!._drawSimplePreview?.();
-		rs!._drawAdvancedPreview?.();
-		rs!._drawAdvancedResultPreview?.();
-		rs!._syncAdvancedMeta?.();
-		rs!._syncSimpleNote?.();
+		rs._drawSimplePreview?.();
+		rs._drawAdvancedPreview?.();
+		rs._drawAdvancedResultPreview?.();
+		rs._syncAdvancedMeta?.();
+		rs._syncSimpleNote?.();
 
 		const setFooterNow = () => {
-			if (rs!.mode === "advanced") {
-				const cols = Math.floor((rs!.origW - rs!.offx) / rs!.gapX);
-				const rows = Math.floor((rs!.origH - rs!.offy) / rs!.gapY);
-				rs!.meta.textContent =
+			if (rs?.mode === "advanced") {
+				const cols = Math.floor((rs?.origW - rs?.offx) / rs?.gapX);
+				const rows = Math.floor((rs?.origH - rs?.offy) / rs?.gapY);
+				rs.meta.textContent =
 					cols > 0 && rows > 0
 						? `Samples: ${cols} × ${rows} | Output: ${cols}×${rows}${cols >= MAX_OVERLAY_DIM || rows >= MAX_OVERLAY_DIM ? ` (exceeds limit: < ${MAX_OVERLAY_DIM}×${MAX_OVERLAY_DIM})` : ""}`
 						: "Adjust multiplier/offset until dots sit at centers.";
 			} else {
-				const W = parseInt(rs!.w.value || "0", 10);
-				const H = parseInt(rs!.h.value || "0", 10);
+				const W = parseInt(rs?.w.value || "0", 10);
+				const H = parseInt(rs?.h.value || "0", 10);
 				const ok = Number.isFinite(W) && Number.isFinite(H) && W > 0 && H > 0;
 				const limit = W >= MAX_OVERLAY_DIM || H >= MAX_OVERLAY_DIM;
-				rs!.meta.textContent = ok
+				rs.meta.textContent = ok
 					? limit
 						? `Target: ${W}×${H} (exceeds limit: must be < ${MAX_OVERLAY_DIM}×${MAX_OVERLAY_DIM})`
 						: `Target: ${W}×${H} (OK)`
@@ -1074,8 +1060,9 @@ async function reconstructViaGrid(
 	gapX: number,
 	gapY: number,
 ) {
-	const srcCanvas = createCanvas(origW, origH) as any;
-	const sctx = srcCanvas.getContext("2d", { willReadFrequently: true })!;
+	const srcCanvas = createCanvas(origW, origH);
+	const sctx = srcCanvas.getContext("2d", { willReadFrequently: true });
+	if (!(sctx instanceof CanvasRenderingContext2D)) return;
 	sctx.imageSmoothingEnabled = false;
 	sctx.drawImage(img, 0, 0);
 	const srcData = sctx.getImageData(0, 0, origW, origH).data;
@@ -1086,7 +1073,7 @@ async function reconstructViaGrid(
 		throw new Error("No samples available with current offset/gap");
 
 	const outCanvas = createHTMLCanvas(cols, rows);
-	const octx = outCanvas.getContext("2d")!;
+	const octx = outCanvas.getContext("2d");
 	const out = octx.createImageData(cols, rows);
 	const odata = out.data;
 
@@ -1124,10 +1111,14 @@ async function reconstructViaGrid(
 	return outCanvas;
 }
 
-async function resizeOverlayImage(ov: any, targetW: number, targetH: number) {
+async function resizeOverlayImage(
+	ov: OverlayItem,
+	targetW: number,
+	targetH: number,
+) {
 	const img = await loadImage(ov.imageBase64);
 	const canvas = createHTMLCanvas(targetW, targetH);
-	const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+	const ctx = canvas.getContext("2d", { willReadFrequently: true });
 	ctx.imageSmoothingEnabled = false;
 	ctx.clearRect(0, 0, targetW, targetH);
 	ctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, targetW, targetH);

@@ -19,7 +19,8 @@ export function createHTMLCanvas(w: number, h: number): HTMLCanvasElement {
 export function canvasToBlob(
 	canvas: OffscreenCanvas | HTMLCanvasElement,
 ): Promise<Blob> {
-	if ((canvas as any).convertToBlob) return (canvas as any).convertToBlob();
+	if (canvas instanceof OffscreenCanvas && canvas.convertToBlob)
+		return canvas.convertToBlob();
 	return new Promise((resolve, reject) =>
 		(canvas as HTMLCanvasElement).toBlob(
 			(b) => (b ? resolve(b) : reject(new Error("toBlob failed"))),
@@ -31,22 +32,25 @@ export function canvasToBlob(
 export async function canvasToDataURLSafe(
 	canvas: OffscreenCanvas | HTMLCanvasElement,
 ): Promise<string> {
-	const anyCanvas = canvas as any;
 	if (canvas && typeof (canvas as HTMLCanvasElement).toDataURL === "function") {
 		return (canvas as HTMLCanvasElement).toDataURL("image/png");
 	}
-	if (canvas && typeof anyCanvas.convertToBlob === "function") {
-		const blob = await anyCanvas.convertToBlob();
+	if (
+		canvas &&
+		canvas instanceof OffscreenCanvas &&
+		typeof canvas.convertToBlob === "function"
+	) {
+		const blob = await canvas.convertToBlob();
 		return await blobToDataURL(blob);
 	}
 	if (
 		typeof OffscreenCanvas !== "undefined" &&
 		canvas instanceof OffscreenCanvas
 	) {
-		const bmp = (canvas as any).transferToImageBitmap?.();
+		const bmp = canvas.transferToImageBitmap?.();
 		if (bmp) {
 			const html = createHTMLCanvas(canvas.width, canvas.height);
-			const ctx = html.getContext("2d")!;
+			const ctx = html.getContext("2d");
 			ctx.drawImage(bmp, 0, 0);
 			return html.toDataURL("image/png");
 		}
@@ -69,7 +73,7 @@ export async function blobToImage(
 			URL.revokeObjectURL(url);
 			resolve(img);
 		};
-		img.onerror = (e) => {
+		img.onerror = (e: unknown) => {
 			URL.revokeObjectURL(url);
 			reject(e);
 		};

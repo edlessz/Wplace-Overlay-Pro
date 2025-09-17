@@ -9,3 +9,14 @@ export function uniqueName(base: string, existing: string[]) {
 	while (names.has(`${base} (${i})`.toLowerCase())) i++;
 	return `${base} (${i})`;
 }
+
+export interface EV_ANCHOR_SET_Event {
+	detail: {
+		overlayId: string;
+		name: string;
+		chunk1: number;
+		chunk2: number;
+		posX: number;
+		posY: number;
+	};
+}

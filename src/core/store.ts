@@ -59,7 +59,7 @@ export async function loadConfig() {
 	try {
 		await Promise.all(
 			CONFIG_KEYS.map(async (k) => {
-				(config as any)[k] = await gmGet(k as string, (config as any)[k]);
+				(config[k] as unknown) = await gmGet(k as string, config[k]);
 			}),
 		);
 		if (!Array.isArray(config.ccFreeKeys) || config.ccFreeKeys.length === 0)
@@ -76,7 +76,7 @@ export async function loadConfig() {
 
 export async function saveConfig(keys: (keyof Config)[] = CONFIG_KEYS) {
 	try {
-		await Promise.all(keys.map((k) => gmSet(k as string, (config as any)[k])));
+		await Promise.all(keys.map((k) => gmSet(k as string, config[k])));
 	} catch (e) {
 		console.error("Overlay Pro: Failed to save config", e);
 	}

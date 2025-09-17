@@ -1,7 +1,6 @@
 /// <reference types="tampermonkey" />
 
 import { clearOverlayCache, paletteDetectionCache } from "../core/cache";
-import { createCanvas } from "../core/canvas";
 import { MAX_OVERLAY_DIM } from "../core/constants";
 import { ensureHook } from "../core/hook";
 import {
@@ -10,7 +9,7 @@ import {
 	WPLACE_NAMES,
 	WPLACE_PAID,
 } from "../core/palette";
-import { config, saveConfig } from "../core/store";
+import { config, type OverlayItem, saveConfig } from "../core/store";
 import { showToast } from "../core/toast";
 
 // dispatch when an overlay image is updated
@@ -44,7 +43,7 @@ type CCState = {
 	selectedPaid: Set<string>;
 	realtime: boolean;
 
-	overlay: any | null;
+	overlay: OverlayItem | null;
 	lastColorCounts: Record<string, number>;
 	isStale: boolean;
 };
@@ -117,7 +116,7 @@ export function buildCCModal() {
 	) as HTMLCanvasElement;
 	const previewCtx = previewCanvas.getContext("2d", {
 		willReadFrequently: true,
-	})!;
+	});
 
 	cc = {
 		backdrop,
@@ -152,34 +151,37 @@ export function buildCCModal() {
 		isStale: false,
 	};
 
-	modal.querySelector("#op-cc-close")!.addEventListener("click", closeCCModal);
+	modal.querySelector("#op-cc-close")?.addEventListener("click", closeCCModal);
 	backdrop.addEventListener("click", closeCCModal);
-	modal.querySelector("#op-cc-cancel")!.addEventListener("click", closeCCModal);
+	modal.querySelector("#op-cc-cancel")?.addEventListener("click", closeCCModal);
 
 	const zoomIn = async () => {
-		cc!.zoom = Math.min(8, (cc!.zoom || 1) * 1.25);
-		config.ccZoom = cc!.zoom;
+		if (!cc) return;
+		cc.zoom = Math.min(8, (cc.zoom || 1) * 1.25);
+		config.ccZoom = cc.zoom;
 		await saveConfig(["ccZoom"]);
 		applyPreview();
 		updateMeta();
 	};
 	const zoomOut = async () => {
-		cc!.zoom = Math.max(0.1, (cc!.zoom || 1) / 1.25);
-		config.ccZoom = cc!.zoom;
+		if (!cc) return;
+		cc.zoom = Math.max(0.1, (cc.zoom || 1) / 1.25);
+		config.ccZoom = cc.zoom;
 		await saveConfig(["ccZoom"]);
 		applyPreview();
 		updateMeta();
 	};
-	modal.querySelector("#op-cc-zoom-in")!.addEventListener("click", zoomIn);
-	modal.querySelector("#op-cc-zoom-out")!.addEventListener("click", zoomOut);
+	modal.querySelector("#op-cc-zoom-in")?.addEventListener("click", zoomIn);
+	modal.querySelector("#op-cc-zoom-out")?.addEventListener("click", zoomOut);
 
 	cc.realtimeBtn.addEventListener("click", async () => {
-		cc!.realtime = !cc!.realtime;
-		cc!.realtimeBtn.textContent = `Realtime: ${cc!.realtime ? "ON" : "OFF"}`;
-		cc!.realtimeBtn.classList.toggle("op-danger", cc!.realtime);
-		config.ccRealtime = cc!.realtime;
+		if (!cc) return;
+		cc.realtime = !cc.realtime;
+		cc.realtimeBtn.textContent = `Realtime: ${cc.realtime ? "ON" : "OFF"}`;
+		cc.realtimeBtn.classList.toggle("op-danger", cc.realtime);
+		config.ccRealtime = cc.realtime;
 		await saveConfig(["ccRealtime"]);
-		if (cc!.realtime && cc!.isStale) recalcNow();
+		if (cc.realtime && cc.isStale) recalcNow();
 	});
 
 	cc.recalcBtn.addEventListener("click", () => {
@@ -187,18 +189,19 @@ export function buildCCModal() {
 	});
 
 	cc.applyBtn.addEventListener("click", async () => {
-		const ov = cc!.overlay;
-		if (!ov || !cc!.processedCanvas) return;
+		if (!cc) return;
+		const ov = cc.overlay;
+		if (!ov || !cc.processedCanvas) return;
 		if (
-			cc!.processedCanvas.width >= MAX_OVERLAY_DIM ||
-			cc!.processedCanvas.height >= MAX_OVERLAY_DIM
+			cc.processedCanvas.width >= MAX_OVERLAY_DIM ||
+			cc.processedCanvas.height >= MAX_OVERLAY_DIM
 		) {
 			showToast(
 				`Image too large to apply (must be < ${MAX_OVERLAY_DIM}×${MAX_OVERLAY_DIM}).`,
 			);
 			return;
 		}
-		const dataUrl = cc!.processedCanvas.toDataURL("image/png");
+		const dataUrl = cc.processedCanvas.toDataURL("image/png");
 		ov.imageBase64 = dataUrl;
 		ov.imageUrl = null;
 		ov.isLocal = true;
@@ -210,9 +213,9 @@ export function buildCCModal() {
 		clearOverlayCache();
 		ensureHook();
 		emitOverlayChanged();
-		const uniqueColors = Object.keys(cc!.lastColorCounts).length;
+		const uniqueColors = Object.keys(cc.lastColorCounts).length;
 		showToast(
-			`Overlay updated (${cc!.processedCanvas.width}×${cc!.processedCanvas.height}, ${uniqueColors} colors).`,
+			`Overlay updated (${cc.processedCanvas.width}×${cc.processedCanvas.height}, ${uniqueColors} colors).`,
 		);
 		closeCCModal();
 	});
@@ -220,7 +223,7 @@ export function buildCCModal() {
 	renderPaletteGrid();
 }
 
-export function openCCModal(overlay: any) {
+export function openCCModal(overlay: OverlayItem) {
 	if (!cc) return;
 	cc.overlay = overlay;
 
@@ -233,36 +236,37 @@ export function openCCModal(overlay: any) {
 
 	const img = new Image();
 	img.onload = () => {
-		if (!cc!.sourceCanvas) {
-			cc!.sourceCanvas = document.createElement("canvas");
-			cc!.sourceCtx = cc!.sourceCanvas.getContext("2d", {
+		if (!cc) return;
+		if (!cc.sourceCanvas) {
+			cc.sourceCanvas = document.createElement("canvas");
+			cc.sourceCtx = cc.sourceCanvas.getContext("2d", {
 				willReadFrequently: true,
-			})!;
+			});
 		}
-		cc!.sourceCanvas.width = img.width;
-		cc!.sourceCanvas.height = img.height;
-		cc!.sourceCtx!.clearRect(0, 0, img.width, img.height);
-		cc!.sourceCtx!.drawImage(img, 0, 0);
+		cc.sourceCanvas.width = img.width;
+		cc.sourceCanvas.height = img.height;
+		cc.sourceCtx.clearRect(0, 0, img.width, img.height);
+		cc.sourceCtx.drawImage(img, 0, 0);
 
-		cc!.sourceImageData = cc!.sourceCtx!.getImageData(
+		cc.sourceImageData = cc.sourceCtx?.getImageData(
 			0,
 			0,
 			img.width,
 			img.height,
 		);
 
-		if (!cc!.processedCanvas) {
-			cc!.processedCanvas = document.createElement("canvas");
-			cc!.processedCtx = cc!.processedCanvas.getContext("2d")!;
+		if (!cc.processedCanvas) {
+			cc.processedCanvas = document.createElement("canvas");
+			cc.processedCtx = cc.processedCanvas.getContext("2d");
 		}
 
 		processImage();
-		cc!.isStale = false;
+		cc.isStale = false;
 		applyPreview();
 		updateMeta();
 
-		cc!.backdrop.classList.add("show");
-		cc!.modal.style.display = "flex";
+		cc.backdrop.classList.add("show");
+		cc.modal.style.display = "flex";
 	};
 	img.src = overlay.imageBase64;
 }
@@ -346,13 +350,13 @@ function processImage() {
 
 	if (!cc.processedCanvas) {
 		cc.processedCanvas = document.createElement("canvas");
-		cc.processedCtx = cc.processedCanvas.getContext("2d")!;
+		cc.processedCtx = cc.processedCanvas.getContext("2d");
 	}
 	cc.processedCanvas.width = w;
 	cc.processedCanvas.height = h;
 
 	const outImg = new ImageData(out, w, h);
-	cc.processedCtx!.putImageData(outImg, 0, 0);
+	cc.processedCtx.putImageData(outImg, 0, 0);
 	cc.lastColorCounts = counts;
 }
 
@@ -411,14 +415,14 @@ function renderPaletteGrid() {
 		cell.dataset.type = "free";
 		if (cc.selectedFree.has(key)) cell.classList.add("active");
 		cell.addEventListener("click", async () => {
-			if (cc!.selectedFree.has(key)) cc!.selectedFree.delete(key);
-			else cc!.selectedFree.add(key);
-			cell.classList.toggle("active", cc!.selectedFree.has(key));
-			config.ccFreeKeys = Array.from(cc!.selectedFree);
+			if (cc.selectedFree.has(key)) cc.selectedFree.delete(key);
+			else cc.selectedFree.add(key);
+			cell.classList.toggle("active", cc.selectedFree.has(key));
+			config.ccFreeKeys = Array.from(cc.selectedFree);
 			await saveConfig(["ccFreeKeys"]);
-			if (cc!.realtime) processImage();
+			if (cc.realtime) processImage();
 			else {
-				cc!.isStale = true;
+				cc.isStale = true;
 			}
 			applyPreview();
 			updateMeta();
@@ -437,15 +441,14 @@ function renderPaletteGrid() {
 		cell.dataset.type = "paid";
 		if (cc.selectedPaid.has(key)) cell.classList.add("active");
 		cell.addEventListener("click", async () => {
-			if (cc!.selectedPaid.has(key)) cc!.selectedPaid.delete(key);
-			else cc!.selectedPaid.add(key);
-			cell.classList.toggle("active", cc!.selectedPaid.has(key));
-			config.ccPaidKeys = Array.from(cc!.selectedPaid);
+			if (cc.selectedPaid.has(key)) cc.selectedPaid.delete(key);
+			else cc.selectedPaid.add(key);
+			cell.classList.toggle("active", cc.selectedPaid.has(key));
+			config.ccPaidKeys = Array.from(cc.selectedPaid);
 			await saveConfig(["ccPaidKeys"]);
-			if (cc!.realtime) processImage();
-			else {
-				cc!.isStale = true;
-			}
+			if (cc.realtime) processImage();
+			else cc.isStale = true;
+
 			applyPreview();
 			updateMeta();
 			updateMasterButtons();
@@ -456,9 +459,9 @@ function renderPaletteGrid() {
 	cc.freeToggle.addEventListener("click", async () => {
 		const allActive = isAllFreeActive();
 		setAllActive("free", !allActive);
-		config.ccFreeKeys = Array.from(cc!.selectedFree);
+		config.ccFreeKeys = Array.from(cc.selectedFree);
 		await saveConfig(["ccFreeKeys"]);
-		if (cc!.realtime) recalcNow();
+		if (cc.realtime) recalcNow();
 		else markStale();
 		applyPreview();
 		updateMeta();
@@ -467,9 +470,9 @@ function renderPaletteGrid() {
 	cc.paidToggle.addEventListener("click", async () => {
 		const allActive = isAllPaidActive();
 		setAllActive("paid", !allActive);
-		config.ccPaidKeys = Array.from(cc!.selectedPaid);
+		config.ccPaidKeys = Array.from(cc.selectedPaid);
 		await saveConfig(["ccPaidKeys"]);
-		if (cc!.realtime) recalcNow();
+		if (cc.realtime) recalcNow();
 		else markStale();
 		applyPreview();
 		updateMeta();
@@ -480,49 +483,56 @@ function renderPaletteGrid() {
 }
 
 function isAllFreeActive() {
-	return DEFAULT_FREE_KEYS.every((k) => cc!.selectedFree.has(k));
+	return DEFAULT_FREE_KEYS.every((k) => cc.selectedFree.has(k));
 }
 function isAllPaidActive() {
 	const allPaidKeys = WPLACE_PAID.map(([r, g, b]) => `${r},${g},${b}`);
 	return (
-		allPaidKeys.every((k) => cc!.selectedPaid.has(k)) && allPaidKeys.length > 0
+		allPaidKeys.every((k) => cc.selectedPaid.has(k)) && allPaidKeys.length > 0
 	);
 }
 function setAllActive(type: "free" | "paid", active: boolean) {
+	if (!cc) return;
+
 	if (type === "free") {
 		const keys = DEFAULT_FREE_KEYS;
-		if (active) keys.forEach((k) => cc!.selectedFree.add(k));
-		else cc!.selectedFree.clear();
-		cc!.freeGrid
-			.querySelectorAll(".op-cc-cell")
-			.forEach((cell) => cell.classList.toggle("active", active));
+		if (active)
+			keys.forEach((k) => {
+				cc.selectedFree.add(k);
+			});
+		else cc.selectedFree.clear();
+		cc.freeGrid.querySelectorAll(".op-cc-cell").forEach((cell) => {
+			cell.classList.toggle("active", active);
+		});
 	} else {
 		const keys = WPLACE_PAID.map(([r, g, b]) => `${r},${g},${b}`);
-		if (active) keys.forEach((k) => cc!.selectedPaid.add(k));
-		else cc!.selectedPaid.clear();
-		cc!.paidGrid
-			.querySelectorAll(".op-cc-cell")
-			.forEach((cell) => cell.classList.toggle("active", active));
+		if (active)
+			keys.forEach((k) => {
+				cc.selectedPaid.add(k);
+			});
+		else cc.selectedPaid.clear();
+		cc.paidGrid.querySelectorAll(".op-cc-cell").forEach((cell) => {
+			cell.classList.toggle("active", active);
+		});
 	}
 }
 function updateMasterButtons() {
-	cc!.freeToggle.textContent = isAllFreeActive()
-		? "Unselect All"
-		: "Select All";
-	cc!.paidToggle.textContent = isAllPaidActive()
-		? "Unselect All"
-		: "Select All";
+	if (!cc) return;
+	cc.freeToggle.textContent = isAllFreeActive() ? "Unselect All" : "Select All";
+	cc.paidToggle.textContent = isAllPaidActive() ? "Unselect All" : "Select All";
 }
 
 function recalcNow() {
+	if (!cc) return;
 	processImage();
-	cc!.isStale = false;
+	cc.isStale = false;
 	applyPreview();
 	updateMeta();
 }
 function markStale() {
-	cc!.isStale = true;
-	cc!.meta.textContent =
-		cc!.meta.textContent.replace(/ \| Status: .+$/, "") +
+	if (!cc) return;
+	cc.isStale = true;
+	cc.meta.textContent =
+		cc.meta.textContent.replace(/ \| Status: .+$/, "") +
 		" | Status: pending recalculation";
 }

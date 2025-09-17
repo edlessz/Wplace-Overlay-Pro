@@ -13,7 +13,7 @@ import { config, saveConfig } from "./store";
 
 let hookInstalled = false;
 let updateUICallback: null | (() => void) = null;
-const page: any = unsafeWindow;
+const page = unsafeWindow;
 
 export function setUpdateUI(cb: () => void) {
 	updateUICallback = cb;
@@ -87,11 +87,11 @@ export function attachHook() {
 		const tileMatch = matchTileUrl(urlStr);
 		const validModes = ["behind", "above", "minify"];
 		if (!tileMatch || !validModes.includes(config.overlayMode)) {
-			return originalFetch(input as any, init as any);
+			return originalFetch(input, init);
 		}
 
 		try {
-			const response = await originalFetch(input as any, init as any);
+			const response = await originalFetch(input, init);
 			if (!response.ok) return response;
 
 			const ct = (response.headers.get("Content-Type") || "").toLowerCase();
@@ -120,7 +120,7 @@ export function attachHook() {
 
 			const finalBlob = await composeTileUnified(
 				originalBlob,
-				overlayDatas.filter(Boolean) as any[],
+				overlayDatas.filter(Boolean),
 				mode,
 			);
 			const headers = new Headers(response.headers);
@@ -134,18 +134,18 @@ export function attachHook() {
 			});
 		} catch (e) {
 			console.error("Overlay Pro: Error processing tile", e);
-			return originalFetch(input as any, init as any);
+			return originalFetch(input, init);
 		}
 	};
 
 	page.fetch = hookedFetch;
-	window.fetch = hookedFetch as any;
+	window.fetch = hookedFetch;
 	hookInstalled = true;
 }
 
 export function detachHook() {
 	if (!hookInstalled) return;
 	page.fetch = NATIVE_FETCH;
-	window.fetch = NATIVE_FETCH as any;
+	window.fetch = NATIVE_FETCH;
 	hookInstalled = false;
 }

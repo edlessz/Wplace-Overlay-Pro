@@ -26,7 +26,9 @@ import { showToast } from "./toast";
 
 const ALL_COLORS = [...WPLACE_FREE, ...WPLACE_PAID];
 const colorIndexMap = new Map<string, number>();
-ALL_COLORS.forEach((c, i) => colorIndexMap.set(c.join(","), i));
+ALL_COLORS.forEach((c, i) => {
+	colorIndexMap.set(c.join(","), i);
+});
 
 const LUT_SIZE = 32; // 32x32x32 = 32KB
 const LUT_SHIFT = 8 - Math.log2(LUT_SIZE); // 3 for 32x32x32
@@ -142,8 +144,10 @@ function isPalettePerfectImage(img: HTMLImageElement): boolean {
 	const cached = paletteDetectionCache.get(key);
 	if (cached !== undefined) return cached;
 
-	const canvas = createCanvas(img.width, img.height) as any;
-	const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+	const canvas = createCanvas(img.width, img.height);
+	const ctx = canvas.getContext("2d", { willReadFrequently: true });
+	if (!(ctx instanceof OffscreenCanvasRenderingContext2D)) return;
+
 	ctx.drawImage(img, 0, 0);
 	const imageData = ctx.getImageData(0, 0, img.width, img.height);
 	const data = imageData.data;
@@ -191,7 +195,7 @@ export function overlaySignature(
 	isPalettePerfect?: boolean,
 ) {
 	const imgKey = ov.imageBase64
-		? ov.imageBase64.slice(0, 64) + ":" + ov.imageBase64.length
+		? `${ov.imageBase64.slice(0, 64)}:${ov.imageBase64.length}`
 		: "none";
 	const perfectFlag =
 		isPalettePerfect !== undefined ? (isPalettePerfect ? "P" : "I") : "U";
@@ -271,9 +275,10 @@ export async function buildOverlayDataForChunkUnified(
 			return null;
 		}
 
-		const canvas = createCanvas(TILE_SIZE, TILE_SIZE) as any;
-		const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-		ctx.drawImage(img as any, drawX, drawY);
+		const canvas = createCanvas(TILE_SIZE, TILE_SIZE);
+		const ctx = canvas.getContext("2d", { willReadFrequently: true });
+		if (!(ctx instanceof OffscreenCanvasRenderingContext2D)) return null;
+		ctx.drawImage(img, drawX, drawY);
 
 		const imageData = ctx.getImageData(isect.x, isect.y, isect.w, isect.h);
 		const data = imageData.data;
@@ -323,14 +328,16 @@ export async function buildOverlayDataForChunkUnified(
 				return null;
 			}
 
-			const canvas = createCanvas(wImg, hImg) as any;
-			const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+			const canvas = createCanvas(wImg, hImg);
+			const ctx = canvas.getContext("2d", { willReadFrequently: true });
+			if (!(ctx instanceof OffscreenCanvasRenderingContext2D)) return null;
 			ctx.imageSmoothingEnabled = false;
-			ctx.drawImage(img as any, 0, 0);
+			ctx.drawImage(img, 0, 0);
 			const originalImageData = ctx.getImageData(0, 0, wImg, hImg);
 
-			const outCanvas = createCanvas(tileW, tileH) as any;
-			const outCtx = outCanvas.getContext("2d", { willReadFrequently: true })!;
+			const outCanvas = createCanvas(tileW, tileH);
+			const outCtx = outCanvas.getContext("2d", { willReadFrequently: true });
+			if (!(outCtx instanceof OffscreenCanvasRenderingContext2D)) return null;
 			const outputImageData = outCtx.createImageData(tileW, tileH);
 			const outData = outputImageData.data;
 
@@ -444,12 +451,13 @@ export async function buildOverlayDataForChunkUnified(
 				return null;
 			}
 
-			const canvas = createCanvas(tileW, tileH) as any;
-			const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+			const canvas = createCanvas(tileW, tileH);
+			const ctx = canvas.getContext("2d", { willReadFrequently: true });
+			if (!(ctx instanceof OffscreenCanvasRenderingContext2D)) return null;
 			ctx.imageSmoothingEnabled = false;
 			ctx.clearRect(0, 0, tileW, tileH);
 			ctx.drawImage(
-				img as any,
+				img,
 				0,
 				0,
 				wImg,
@@ -514,7 +522,7 @@ export async function composeTileUnified(
 	mode: "behind" | "above" | "minify",
 ) {
 	if (!overlayDatas || overlayDatas.length === 0) return originalBlob;
-	const originalImage = (await blobToImage(originalBlob)) as any;
+	const originalImage = await blobToImage(originalBlob);
 
 	if (mode === "minify") {
 		const scale =
@@ -531,18 +539,22 @@ export async function composeTileUnified(
 		let scaledBaseImageData = baseMinifyCache.get(baseCacheKey);
 
 		if (!scaledBaseImageData) {
-			const baseCanvas = createCanvas(w * scale, h * scale) as any;
+			const baseCanvas = createCanvas(w * scale, h * scale);
 			const baseCtx = baseCanvas.getContext("2d", {
 				willReadFrequently: true,
-			})!;
+			});
+			if (!(baseCtx instanceof OffscreenCanvasRenderingContext2D))
+				return originalBlob;
 			baseCtx.imageSmoothingEnabled = false;
 			baseCtx.drawImage(originalImage, 0, 0, w * scale, h * scale);
 			scaledBaseImageData = baseCtx.getImageData(0, 0, w * scale, h * scale);
 			baseMinifyCache.set(baseCacheKey, scaledBaseImageData);
 		}
 
-		const canvas = createCanvas(w * scale, h * scale) as any;
-		const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+		const canvas = createCanvas(w * scale, h * scale);
+		const ctx = canvas.getContext("2d", { willReadFrequently: true });
+		if (!(ctx instanceof OffscreenCanvasRenderingContext2D))
+			return originalBlob;
 		ctx.putImageData(scaledBaseImageData, 0, 0);
 
 		for (const ovd of overlayDatas) {
@@ -550,8 +562,10 @@ export async function composeTileUnified(
 			const tw = ovd.imageData.width;
 			const th = ovd.imageData.height;
 			if (!tw || !th) continue;
-			const temp = createCanvas(tw, th) as any;
-			const tctx = temp.getContext("2d", { willReadFrequently: true })!;
+			const temp = createCanvas(tw, th);
+			const tctx = temp.getContext("2d", { willReadFrequently: true });
+			if (!(tctx instanceof OffscreenCanvasRenderingContext2D))
+				return originalBlob;
 			tctx.putImageData(ovd.imageData, 0, 0);
 			ctx.drawImage(temp, ovd.dx, ovd.dy);
 		}
@@ -560,17 +574,17 @@ export async function composeTileUnified(
 
 	const w = originalImage.width,
 		h = originalImage.height;
-	const canvas = createCanvas(w, h) as any;
-	const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+	const canvas = createCanvas(w, h);
+	const ctx = canvas.getContext("2d", { willReadFrequently: true });
+	if (!(ctx instanceof OffscreenCanvasRenderingContext2D)) return originalBlob;
 
 	if (mode === "behind") {
 		for (const ovd of overlayDatas) {
 			if (!ovd) continue;
-			const temp = createCanvas(
-				ovd.imageData.width,
-				ovd.imageData.height,
-			) as any;
-			const tctx = temp.getContext("2d", { willReadFrequently: true })!;
+			const temp = createCanvas(ovd.imageData.width, ovd.imageData.height);
+			const tctx = temp.getContext("2d", { willReadFrequently: true });
+			if (!(tctx instanceof OffscreenCanvasRenderingContext2D))
+				return originalBlob;
 			tctx.putImageData(ovd.imageData, 0, 0);
 			ctx.drawImage(temp, ovd.dx, ovd.dy);
 		}
@@ -580,11 +594,10 @@ export async function composeTileUnified(
 		ctx.drawImage(originalImage, 0, 0);
 		for (const ovd of overlayDatas) {
 			if (!ovd) continue;
-			const temp = createCanvas(
-				ovd.imageData.width,
-				ovd.imageData.height,
-			) as any;
-			const tctx = temp.getContext("2d", { willReadFrequently: true })!;
+			const temp = createCanvas(ovd.imageData.width, ovd.imageData.height);
+			const tctx = temp.getContext("2d", { willReadFrequently: true });
+			if (!(tctx instanceof OffscreenCanvasRenderingContext2D))
+				return originalBlob;
 			tctx.putImageData(ovd.imageData, 0, 0);
 			ctx.drawImage(temp, ovd.dx, ovd.dy);
 		}

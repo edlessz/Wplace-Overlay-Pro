@@ -1,6 +1,6 @@
 export const NATIVE_FETCH = window.fetch;
 
-export const gmGet = (key: string, def: any) => {
+export const gmGet = (key: string, def: unknown) => {
 	try {
 		if (typeof GM !== "undefined" && typeof GM.getValue === "function")
 			return GM.getValue(key, def);
@@ -10,7 +10,7 @@ export const gmGet = (key: string, def: any) => {
 	return Promise.resolve(def);
 };
 
-export const gmSet = (key: string, value: any) => {
+export const gmSet = (key: string, value: unknown) => {
 	try {
 		if (typeof GM !== "undefined" && typeof GM.setValue === "function")
 			return GM.setValue(key, value);
